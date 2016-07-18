@@ -73,6 +73,8 @@ bool gReverseDirection = false;
 #define  B_PIN  11  // Blue LED
 #define  W_PIN 12  //White LED
 #define BUTT_HOLD_THRESHOLD 200
+
+#define INVERTED_LOGIC 0    //Does this board use inverted PWM?
 /*=========================================================================
     APPLICATION SETTINGS
 
@@ -270,7 +272,8 @@ void setup(void)
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*SimplePatternList[])();
 //SimplePatternList gPatterns = { off,solid, rainbow, rainbowWithGlitter, confetti, sinelon, juggle, bpm, Fire2012  };
-SimplePatternList gPatterns = { off,solid };
+SimplePatternList gPatterns = { off,Mood,Solid };
+#define NumberOfPatternsToCycle 2 
 
 uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
 uint8_t gHue = 0; // rotating "base color" used by many of the patterns
@@ -374,10 +377,12 @@ void loop(void)
   //Call the PWM output "analog Write"
   if(PWM_value > 255) PWM_value=255;
   if(PWM_value <0) PWM_value = 0;
-  analogWrite(W_PIN, PWM_value);
-  analogWrite(R_PIN, red);
-  analogWrite(G_PIN, green);
-  analogWrite(B_PIN, blue);
+  
+  analogWrite(W_PIN,  scale_to_pwm(PWM_value,1,230));
+  analogWrite(R_PIN, scale_to_pwm(red,20,200));
+  analogWrite(G_PIN, scale_to_pwm(green,2,200));
+  analogWrite(B_PIN, scale_to_pwm(blue,2,200));
+
   //analogWrite(PWM_PIN, PWM_value);
   //digitalWrite(PWM_PIN,PWM_value);
   // send the 'leds' array out to the actual LED strip
@@ -519,25 +524,51 @@ void loop(void)
    }
 
   if (colorchange)
-    gCurrentPatternNumber = 0;
+  {
+    gCurrentPatternNumber = 2;  //Solid
+    colorchange = 0;  //Reset this flag.
+    PWM_value= 0;
+  }
     
 }
 
+int scale_to_pwm(int value,int high, int low)
+{
+  int out = (((float)value/255.0)*(float)(high-low))+low;
+  if(INVERTED_LOGIC)
+    return(out);
+  else
+    return(value);
+}
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 void nextPattern()
 {
   // add one to the current pattern number, and wrap around at the end
-  gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE( gPatterns);
- 
+  //gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE( gPatterns);
+ gCurrentPatternNumber = (gCurrentPatternNumber + 1) ;
+ if(gCurrentPatternNumber > NumberOfPatternsToCycle-1)
+  gCurrentPatternNumber=0;
+ if(gCurrentPatternNumber <0 )
+   gCurrentPatternNumber=NumberOfPatternsToCycle-1;
+ Serial.print("Current mode=");
+ Serial.print(gCurrentPatternNumber);
 }
 void prevPattern()
 {
   // add one to the current pattern number, and wrap around at the end
-  gCurrentPatternNumber = (gCurrentPatternNumber - 1) % ARRAY_SIZE( gPatterns);
-  
+  //gCurrentPatternNumber = (gCurrentPatternNumber - 1) % ARRAY_SIZE( gPatterns);
+  gCurrentPatternNumber = (gCurrentPatternNumber - 1) ;
+  if(gCurrentPatternNumber <0 )
+   gCurrentPatternNumber=NumberOfPatternsToCycle-1;
+  if(gCurrentPatternNumber > NumberOfPatternsToCycle-1)
+  gCurrentPatternNumber=0;
+ 
+  Serial.print("Current mode=");
+  Serial.print(gCurrentPatternNumber);
 }
+
 
 void off()
 {
@@ -550,14 +581,25 @@ void off()
    }
 }
 
-void solid()
+void Mood()
 {
     /*convert hue to RGB*/
-   
-   CRGB rgb =iterate(); //Move through the colors (See Colorspace.cpp)
+   CHSV hsv(gHue,255,255);
+   CRGB rgb;
+   hsv2rgb_spectrum(hsv,rgb);
+   //CRGB rgb =iterate(); //Move through the colors (See Colorspace.cpp)
    red= rgb.red;
    green = rgb.green;
    blue = rgb.blue;
+   for( int i = 0; i < NUM_LEDS; i++) { //9948
+    leds[i] =  leds[i].setRGB( red, green, blue);
+   }
+   
+}
+
+void Solid()
+{
+  
    for( int i = 0; i < NUM_LEDS; i++) { //9948
     leds[i] =  leds[i].setRGB( red, green, blue);
    }
