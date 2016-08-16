@@ -7,7 +7,11 @@
  Changelog: 6/4/16: Initial adaptation from controller to enable
  buttons, debouncing of buttons, 
 *********************************************************************/
-
+//Board specific settings:
+#define INVERTED_LOGIC 0    //Does this board use inverted PWM?
+#define ENABLE_NEO_WHITE 1 //Enable any neopixels to turn on with white light commands
+#define NUM_LEDS    8      //Number of neopixels in configuation.
+#define VERSION 0.1       //Version number
 
 #include <string.h>
 #include <Arduino.h>
@@ -64,7 +68,7 @@ bool gReverseDirection = false;
 #define BUTTON3_PIN 17
 #define BUTTON4_PIN 16
 #define DATA_PIN    5 //Neopixel pin
-#define NUM_LEDS    4
+
 
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
@@ -74,7 +78,7 @@ bool gReverseDirection = false;
 #define  W_PIN 12  //White LED
 #define BUTT_HOLD_THRESHOLD 200
 
-#define INVERTED_LOGIC 0    //Does this board use inverted PWM?
+
 /*=========================================================================
     APPLICATION SETTINGS
 
@@ -106,7 +110,7 @@ bool gReverseDirection = false;
                               "DISABLE" or "MODE" or "BLEUART" or
                               "HWUART"  or "SPI"  or "MANUAL"
     -----------------------------------------------------------------------*/
-    #define FACTORYRESET_ENABLE         1
+    #define FACTORYRESET_ENABLE         0
     #define MINIMUM_FIRMWARE_VERSION    "0.6.6"
     #define MODE_LED_BEHAVIOUR          "MODE"
 /*=========================================================================*/
@@ -143,8 +147,8 @@ float parsefloat(uint8_t *buffer);
 void printHex(const uint8_t * data, const uint32_t numBytes);
 
 // function prototypes over in Colorspace.cpp
-void init_colors();
-CRGB iterate();
+//void init_colors();
+//CRGB iterate();
 
 // the packet buffer
 extern uint8_t packetbuffer[];
@@ -319,7 +323,7 @@ void loop(void)
   Button3.update();
   Button4.update();
 
-  butt1 = !Button1.read();
+ /* butt1 = !Button1.read();
   butt2 = !Button2.read();
   butt3 = !Button3.read();
   butt4 = !Button4.read();
@@ -357,7 +361,7 @@ void loop(void)
       PWM_value =255;
     butt4_held = 0;  //return the hold counter to 0.
   }
-
+*/
  
  if(bt_hold_pressed)
  {
@@ -370,6 +374,11 @@ void loop(void)
   if(bt_butt_held >= BUTT_HOLD_THRESHOLD)
     if(bt_hold_buttnum == 6)
       PWM_value--;
+
+   if(ENABLE_NEO_WHITE)
+   {
+        setRGBfromPWM(PWM_value);
+   }
  }
    // Call the current pattern function once, updating the 'leds' array
   gPatterns[gCurrentPatternNumber]();
@@ -432,7 +441,7 @@ void loop(void)
     }
   }
 
-  // GPS Location
+/*  // GPS Location
   if (packetbuffer[1] == 'L') {
     float lat, lon, alt;
     lat = parsefloat(packetbuffer+2);
@@ -496,22 +505,29 @@ void loop(void)
     Serial.print(w); Serial.println();
   }
 
-
+*/
  
   //cycle neopixel show based on BT button press
   if  (pressed && buttnum <=4)  {
-     gCurrentPatternNumber = buttnum;
+     //gCurrentPatternNumber = buttnum;
     }
   if  (pressed && buttnum ==8)  {  //Right
-     nextPattern();
+     //nextPattern();
+      gCurrentPatternNumber=1;
     }
   if  (pressed && buttnum ==7)  { //Left
-     prevPattern();
+     //prevPattern();
+      gCurrentPatternNumber=0;
     }
   if  (released && buttnum ==6)   { //Down
      if(bt_butt_held < BUTT_HOLD_THRESHOLD)
      {
       PWM_value = 0;
+     }
+     if(ENABLE_NEO_WHITE)
+     {
+        setRGBfromPWM(PWM_value);
+        gCurrentPatternNumber = 2;  //Solid
      }
      bt_butt_held = 0;
   }
@@ -520,6 +536,11 @@ void loop(void)
      {
       PWM_value = 255;
      }
+     if(ENABLE_NEO_WHITE)
+     {
+        setRGBfromPWM(PWM_value);
+        gCurrentPatternNumber = 2;  //Solid
+     }
      bt_butt_held = 0;
    }
 
@@ -527,11 +548,18 @@ void loop(void)
   {
     gCurrentPatternNumber = 2;  //Solid
     colorchange = 0;  //Reset this flag.
-    PWM_value= 0;
+    if(!ENABLE_NEO_WHITE)
+      PWM_value= 0; //turn pwm off if neopix white is not enabled.
   }
     
 }
 
+void setRGBfromPWM(uint8_t PWM)
+{
+  red= (((float)PWM)/255)*255;
+  green= (((float)PWM)/255)*227;
+  blue = (((float)PWM)/255)*161;
+}
 int scale_to_pwm(int value,int high, int low)
 {
   int out = (((float)value/255.0)*(float)(high-low))+low;
@@ -605,7 +633,7 @@ void Solid()
    }
    
 }
-
+/*
 void rainbow() 
 {
   // FastLED's built-in rainbow generator
@@ -696,4 +724,4 @@ void Fire2012()
       leds[pixelnumber] = color;
     }
 }
-
+*/
